@@ -1,0 +1,168 @@
+---
+title: "Projekt z modelowania deterministycznego"
+subtitle: "Problem optymalnego ogrzewania mieszkania"
+author: "Klaudia Bała"
+lang: "pl"
+format: pdf
+editor: visual
+jupyter: python3
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage{amssymb}
+  - \usepackage{mathrsfs}
+---
+
+# Czego dotyczy projekt?
+
+Niniejszy projekt dotyczy zagadnienia optymalnego ogrzewania mieszkania. Podstawowym narzędziem matematycznym, które posłuży nam w rozważaniach, będzie równanie ciepła. Będziemy rozważać mieszkanie czteropokojowe, składające się z korytarza, sypialni, łazienki oraz głównego pokoju, tj. salonu połączonego z kuchnią (aneksem kuchennym). W naszych analizach spróbujemy zająć się dwoma problemami.  
+
+Pierwszym z nich jest rozmieszczenie grzejników. Zazwyczaj w Polsce grzejniki są umieszczane pod oknami. Chcemy sprawdzić, czy faktycznie jest to najbardziej optymalny sposób ich montażu, czy może tradycyjne umiejscowienie jest błędne i prowadzi do nadmiernego zużycia energii (ciepła).  
+
+Drugim rozważanym przez nas problemem będzie kwestia wyłączania ogrzewania na czas naszej nieobecności. Czy ma to sens i faktycznie pozwala zaoszczędzić? Czy może optymalniejszym rozwiązaniem będzie pozostawienie włączonych grzejników, ale z obniżoną temperaturą na termostacie?  
+
+Mamy nadzieję, że nasze rozważania pozwolą choć częściowo odpowiedzieć na zadane pytania i problemy. Musimy jednak pamiętać, że w naszych analizach zastosujemy pewne uproszczenia, które mogą wpłynąć na wyniki eksperymentu. Dlatego nie zalecamy sugerowania się w 100% wynikami poniższych rozważań przy podejmowaniu rzeczywistych decyzji związanych ze skutecznością i optymalizacją ogrzewania.  
+
+
+# Schemat mieszkania
+
+Na początek przyjrzyjmy się poniższemu schematowi mieszkania, które będziemy rozważać.
+
+![Schemat mieszkania](schemat_ulepszony.jpg){ width=300px }
+
+Schemat został wykonany ręcznie na papierze milimetrowym, aby już na tym etapie przedstawić dyskretyzację naszego mieszkania. Ściany zewnętrzne, okna i grzejniki mają szerokość jednej kratki, natomiast ściany wewnętrzne oraz drzwi (przejścia) mają szerokość dwóch kratek. Takie założenie zostało przyjęte w celu ułatwienia modelowania.
+
+Umownie ustalmy przeznaczenie poszczególnych pomieszczeń, aby łatwiej odnajdywać się na planie podczas omawiania szczegółów. Największy pokój na samej górze to pokój dzienny pełniący funkcję salonu z aneksem kuchennym. Idąc od góry, mamy korytarz, który nie posiada drzwi zewnętrznych. Przyjęto założenie, że przez cały eksperyment nikt nie wchodził do mieszkania, a drzwi te są na tyle szczelne, że można je traktować tak samo jak ściany i pominąć w obliczeniach.
+
+W lewym dolnym rogu znajduje się sypialnia, natomiast w prawym dolnym rogu – łazienka. W każdym pokoju został umieszczony jeden kaloryfer, wyjątkiem jest pokój dzienny, w którym znajdują się aż trzy grzejniki. Dwa okna umieszczono w głównym pokoju, a jedno w sypialni.
+
+Mając już wstępnie omówiony schemat mieszkania, przejdziemy teraz do matematycznego opisu naszego modelu.
+
+# Model matematyczny
+
+Był już on omówiony w pliku z opisem projektu, ale przypomnijmy go raz jeszcze dla lepszego zrozumienia. Rozpatrujemy następujące zagadnienie przewodnictwa cieplnego w mieszkaniu opisanym przez obszar $\Omega \subset \mathbb{R}^2.$
+
+\begin{equation}
+\begin{cases}
+    u_t = \alpha \Delta u + f_i(z, u), & z \in R_i, \ t > 0, \ i \in \{1, 2, \ldots, N_{\text{rooms}}\}, \\
+    u = T_{\text{out}}(t), & z \in W_i, \ t > 0, \ i \in \{1, 2, \ldots, N_{\text{windows}}\}, \\
+    \nabla u \cdot n = 0, & z \in W_i, \ t > 0, \ i \in \{1, 2, \ldots, N_{\text{walls}}\}, \\
+    u = \frac{1}{|D_i|} \int_{D_i} u \, dz, & z \in D_i, \ t > 0, \ i \in \{1, 2, \ldots, N_{\text{doors}}\}, \\
+    u(z, 0) = u_0(z), & z \in \Omega.
+\end{cases}
+\end{equation}
+
+gdzie:
+
+\begin{itemize}
+    \item $u := u(z, t)$ to temperatura (wyrażona w Kelwinach) w punkcie $z$ i czasie $t$. Zakładamy, że temperatura w mieszkaniu podlega dobrze znanemu równaniu przewodnictwa cieplnego ze współczynnikiem $\alpha$. 
+    \item $u_0$ to początkowy rozkład temperatury w mieszkaniu.
+    \item Obszar $\Omega$ rozkłada się na rozłączne zbiory: $R_i$ - pokoje, $W_i$ - okna, $W_i$ - ściany, $D_i$ - drzwi. W szczególności:
+    $$
+    \Omega = 
+    \left( \bigcup_{i \in \{1, 2, \ldots, N_{\text{rooms}}\}} R_i \right) 
+    \cup 
+    \left( \bigcup_{i \in \{1, 2, \ldots, N_{\text{windows}}\}} W_i \right) 
+    \cup 
+    \left( \bigcup_{i \in \{1, 2, \ldots, N_{\text{walls}}\}} W_i \right) 
+    \cup 
+    \left( \bigcup_{i \in \{1, 2, \ldots, N_{\text{doors}}\}} D_i \right).
+    $$
+    \item Wyrażenie $f_i := f_i(z, u)$ jest źródłem ciepła (grzejnik). Oznaczamy zbiór strategii: $S = \{S_1, S_2, \ldots, S_{N_{\text{radiators}}}\}$ - to znaczy zestaw temperatur granicznych dla ustalonych wartości na „pokrętełach” grzejnika. W szczególności będziemy modelować ciepło dostarczane przez grzejnik $f_i$ jako funkcję daną jawnym wzorem poniżej:
+    $$
+    f_i(z, u) = \frac{P}{\rho \cdot |\mathcal{R_i}| \cdot c} \cdot 1_{\{z \in \mathcal{R_i}\}}(z) \cdot 1_{\left\{ \frac{1}{|R_i|} \int_{R_i} u(z, t) \, dz < S_i \right\}}(u).
+    $$
+    Oznaczając przez $R_i \subset R_i$ obszar umiejscowienia grzejnika (o mocy $P$ - zakładamy, że wszystkie grzejniki w domu mają tę samą moc) w pokoju $R_i$ możemy zauważyć, że powyższa definicja oznacza tylko tyle, iż ciepło jest produkowane tylko i wyłącznie dla $z \in R_i$ (ciepło jest „produkowane” tylko tam, gdzie znajdują się grzejniki) i tylko wtedy, gdy średnia temperatura w pokoju $R_i$ jest poniżej ustalonej (przez pokrętło) temperatury granicznej $S_i$. \textbf{Uwaga}: Jeżeli w danym pokoju nie ma grzejnika, to $f_i \equiv 0$.
+    \item Poprzez 2 równanie, robimy założenie, że temperatura na oknach jest równa temperaturze na zewnątrz $T_{\text{out}}(t)$ (wyrażonej w Kelwinach), mimo że w rzeczywistości mogą występować różnice wynikające z izolacji.
+    \item Poprzez 3 równanie, zakładamy, że nie ma utraty ciepła na ścianach (mimo że w rzeczywistości zawsze istnieje pewna utrata ciepła).
+    \item Poprzez 4 równanie, symulujemy rozchodzenie się temperatury między pomieszczeniami (jest to uśrednienie temperatury w przejściach $D_i$). Jest to uproszczenie techniczne, które pozwala uniknąć analizy zjawiska adwekcji czy problemów numerycznych wynikających z rozwiązywania równania przewodnictwa cieplnego w małych obszarach.
+    \item Dodatnie liczby naturalne $N_{\text{rooms}}, N_{\text{windows}}, N_{\text{walls}}, N_{\text{doors}}, N_{\text{radiators}}$ oznaczają kolejno ilości pokoi, okien, ścian, drzwi i grzejników.
+\end{itemize}
+
+# Dyskretyzacja
+
+Teraz musimy przeprowadzić dyskretyzację poszczególnych elementów modelu. W tym celu zakładamy, że mają one kształt prostokątów i wpisujemy je w siatkę kwadratów. W rzeczywistości ten krok został już wykonany, co było widoczne na wcześniej załączonym schemacie. W naszej dyskretyzacji przyjęliśmy krok $h = 0.1$. Jeśli chodzi o dyskretyzację czasu, przyjmujemy krok równy $h_t = 0.1$.
+
+Zanim przejdziemy do omówienia schematu numerycznego, podamy wartości przyjęte dla poszczególnych stałych. I tak: współczynnik przewodnictwa cieplnego powietrza wynosi $\alpha = 0.025  \left[\frac{W}{m \cdot K}\right]$, gęstość powietrza $\rho = 1.205  \left[\frac{kg}{m^3}\right]$, a ciepło właściwe $c = 1.005  \left[\frac{kJ}{kg \cdot K}\right]$. Wszystkie wartości zostały zaczerpnięte z tablic zamieszczonych pod tym [linkiem](https://home.agh.edu.pl/~siwek/Maszyny_I_Urzadzenia_Energetyczne_2017/Z.5.%20Turbiny%20Gazowe/Tablice%20powietrze.pdf) dla temperatury $20^\circ C$.
+
+Moc grzejników, jaką przyjęliśmy, wynosi $1300  W$. Dodatkowo, każdy z grzejników ma wymiary $1.2 \text{m} \times h$ (zgodnie ze schematem), co powoduje, że $|\mathcal{R_i}| = 1.2 \cdot 0.1 \cdot 1 = 1.2$.
+
+# Schemat numeryczny
+
+W celu rozwiązania równania ciepła ($u_t = \alpha \Delta u + f_i(x, u)$) użyjemy schematu numerycznego wynikającego z metody różnic skończonych. Przyjmuje on postać:
+
+\begin{align}
+u(x,y,t+h_t) &= u(x,y,t) + \frac{h_t}{h^2} \big( u(x+h,y,t) + u(x-h,y,t) + u(x,y-h,t) \notag \\
+&\quad + u(x,y+h,t) - 4u(x,y,t) \big) + h_t \cdot f(x,y),
+\end{align}
+
+gdzie $z=(x,y),$ $f(x,y) = f_i(z,u)$ oraz zakładamy, że $h_x=h_y=h$. parametry jakie wcześniej dobraliśmy, to znaczy $h$, $h_t$ i $\alpha$ zapewniają nam stabilność schematu numerycznego, ponieważ $\frac{0.025\cdot0.1}{0.1^2}=0.25<0.5.$ Każdy z pokoi będziemy rozwiązywać osobno. Jedyną ich interakcją są przejścia, czyli drzwi. Za drzwi odpowiadał warunek $u = \frac{1}{|D_i|} \int_{D_i} u \, dz.$ W naszym numerycznym schemacie uwzględnimy go licząc średnią arytmetyczną najbliższych dwóch sąsiadów z góry i z dołu (przy ustalonym x), co możemy zapisać jako $u(x,y,t)=u(x,y+h,t)=\frac{u(x,y-h,t)+u(x,y+2h,t)}{2}.$ Na ścianach został zastosowany warunek brzegowy Neuman'a, który oznacza, że na ścianach w chwili $t$ będzie panować taka sama temperatura jak w najbliższej komórce wewnątrz pokoju. Wyjaśniając w terminach macierzy oznacza to, że przypisujemy wartości z 2 wiersza do 1, z przedostatniego wiersza do ostatniego, z 2 kolumny do pierwszej, z przedostatniej kolumny do ostatniej. Jeśli chodzi o okna, to ze [strony](https://weather.com/pl-PL/pogoda/godzinowa/l/1d403b12c994501ef61ddcb6e5d91f398ac91ab37c9320c731a5069cfcb6c246?cm_ven=hourly&par=samsung_widget_XEO#detailIndex0) została zgromadzona temperatura godzinowa z 9 stycznia tego roku, której wartości posłużyły do interpolacji liniowej funkcji temperatury zewnętrznej. Na koniec musimy wspomnieć, że założyliśmy, że mieszkanie nie było ogrzewane przez kilka dni (2-3), przez co początkowy rozkład temperatury w całym mieszkaniu (oprócz okien, gdzie wzięliśmy temeraturę zewnętrzną) wynosił $13^{\circ}C.$ Jeszcze powinniśmy wymienić, jakie temperatury graniczne będziemy stosować, tzn. jakie wartości przyjmuje zbiór $S$. Sugerując się zalecanymi temperaturami w zależności od przeznaczenia pomieszczenia, próg graniczy dla pokoju dziennego to $22^{\circ}C$, dla korytarza $20^{\circ}C$, dla sypialni $19^{\circ}C$, zaś dla łazienki $24^{\circ}C$.
+
+Warto jeszcze wspomnieć o pewnej istotnej funkcji. Pośrednią miarą zużycia energii będzie następująca funkcja zliczająca ciepło wydzielone podczas eksperymentu:
+
+$$\Psi(t)= \int_0^t \int_{\Omega} f(z,u(z,s)) dz  \,\, ds.$$ 
+Za ostateczny wynik eksperymentu możemy uznać $\Psi(T)$, gdzie $T$ to maksymalny czas trwania eksperymentu.
+
+Wydaje się, że mamy już wszystkie niezbędne elementy, by przejść do symulacji i ich wyników. Zatem na początek rozważmy wcześniej wspomniany problem umieszczenia grzejników.
+
+# Jakie rozmieszczenie grzejników jest optymalniejsze?
+
+W naszych rozważaniach uwzględnimy dwa rozmieszczenia grzejników: pierwsze, standardowe, w którym pod każdym oknem znajduje się kaloryfer, oraz drugie, alternatywne, w którym grzejniki nie zostały umieszczone pod żadnym oknem. Poniżej przedstawiono schemat uwzględniający oryginalny rozkład (grzejniki pod oknami), a także zaznaczenie kolorem zielonym miejsc, do których grzejniki zostaną przemieszczone w drugim przypadku. Kaloryfery, które nie znajdują się pod oknami, pozostawiono na swoich pierwotnych miejscach. 
+
+![Schemat mieszkania](schemat_zmiana_grzejnikow_ulep_wersja.jpg){ width=200px }
+
+Nasza symulacja obejmuje czas do 4 godzin, ponieważ jest to wystarczający okres na wyciągnięcie wniosków i obserwacji. Symulację rozpoczęliśmy o godzinie 9:00, co zostało uwzględnione poprzez dobranie odpowiedniej temperatury zewnętrznej.
+
+Na początek przyjrzyjmy się mapom ciepła dla różnych momentów czasu od chwili rozpoczęcia eksperymentu. Na mapach ciepła temperatura jest podana w Kelwinach, ponieważ w tej analizie nie zależy nam na odczytywaniu konkretnych wartości liczbowych. Skupimy się raczej na rozkładzie temperatury, obserwując, co dzieje się, gdy grzejniki przestają grzać, oraz na innych tego typu zjawiskach.
+
+![Mapy ciepła dla pierwszego ułożenia grzejników.](ost_obrazek_mc_1ug_bez_tytulu.png){ width=600px }
+
+Analizując mapy ciepła, możemy zauważyć, że grzejniki znajdujące się pod oknami są „tłumione” przez ich obecność i praktycznie nie widać efektów ich działania. Dużo skuteczniejsze okazują się grzejniki umieszczone w innych miejscach.
+
+Zauważmy, że korytarz i łazienka już po mniej niż 30 minutach osiągnęły wymaganą średnią temperaturę, co poskutkowało wyłączeniem się kaloryferów. Widzimy również, że w pokoju dziennym i sypialni zmiany temperatury zachodzą najwolniej. Pokój dzienny stopniowo się ociepla, natomiast w sypialni wydaje się, że temperatura spadła poniżej wartości początkowej. Potwierdzenie tej obserwacji można znaleźć na wykresie średnich temperatur poniżej.
+
+![Wykres średnich temperatur dla poszczególnych pokoi dla pierwszego ułożenia grzejników. ](ost_obrazek_tem_pom_1ug_bez_tytulu.png){ width=510px }
+
+Widzimy, że nasze wcześniejsze obserwacje się potwierdzają. Najszybszy wzrost temperatury odnotowujemy w łazience i korytarzu, co nie jest zaskakujące, ponieważ w tych pomieszczeniach brak okien ogranicza odpływ ciepła – energia cieplna jedynie napływa.
+
+Z wykresu wynika również, że sypialnia „radzi sobie” najgorzej. Tam temperatura spadła aż do około 8°C. We wszystkich pomieszczeniach na początku zauważamy szybsze zmiany temperatury, które następnie zaczynają się stabilizować. Powyższe wyniki nie wskazują, by ten układ był optymalny.
+
+Teraz sprawdźmy, jak wygląda sytuacja przy zmienionym układzie grzejników.
+
+![Mapy ciepła dla drugiego ułożenia grzejników.](ost_obrazek_mc_2ug_bez_tytulu.png){ width=600px }
+
+Już na podstawie map ciepła możemy zauważyć znaczną poprawę. Widać, że w tym układzie ciepło oddawane przez grzejniki nie jest tłumione przez okna i może swobodnie ogrzewać resztę pokoju. Pomimo że temperatura przy oknach jest stale najniższa to nie wpływa ona znacząco na „hamowanie” rozprzestzreniania się ciepła w reszcie przestrzeni. Przy tym układzie zyskujemy szybkie rozprzestrzenianie się ciepła w pokojach, ale stale punktami ze znacznie niższymi temperaturami będą same okna i przestrzeń je otaczająca.
+
+![Wykres średnich temperatur dla poszczególnych pokoi dla drugiego przypadku. ](ost_obrazek_tem_pom_2ug_bez_tytulu.png){ width=500px }
+
+Wykres średnich temperatur również potwierdza, że ten układ radzi sobie znacznie lepiej. Widzimy, że już po około 10 minutach wszystkie pomieszczenia średnio osiągnęły odpowiednie wartości temperatur. To wskazuje, że nawet bez analizy wykresu oddanej energii można stwierdzić, iż umieszczanie grzejników pod oknami w naszej sytuacji nie jest optymalne, ponieważ prawdopodobnie prowadzi do znacznie większego zużycia energii. Spójrzmy jednak na wykres oddanej energii zamieszczony poniżej, aby potwierdzić te obserwacje.
+
+![Wykres całkowitej energii oddanej do układu dla obu wariantów.](ost_obrazek_oddana_energia_bez_tytulu.png){ width=500px }
+
+Wykres potwierdza nasze przypuszczenia. Początkowo obie krzywe mają podobny przebieg, ale z czasem dla drugiego układu współczynnik kierunkowy wykresu się zmienia i zbliża się on (wykres) bardziej w kierunku osi OX, podczas gdy (wykres) dla pierwszego układu utrzymuje swój pierwotny kierunek. Widzimy, że na końcu eksperymentu dla drugiego ułożenia uzyskana wartość jest nawet o 20 000 mniejsza niż w pierwszym przypadku.
+
+Należy jednak pamiętać, że tak znaczące różnice mogą wynikać z założeń przyjętych w naszym modelu, na przykład z traktowania okien jako miejsc o temperaturze zewnętrznej. W rzeczywistości sytuacja wyglądałaby inaczej, ponieważ okna posiadają izolację w postaci powietrza umieszczonego między szybami. Jednak w ramach przyjętego modelu widzimy wyraźnie, że optymalniejszym rozwiązaniem jest unikanie umieszczania grzejników pod oknami. Teraz przejdziemy do rozważenia naszego drugiego problemu.
+
+# Czy warto wyłączać grzejniki, kiedy wychodzimy z domu?
+
+Odpowiedź na to pytanie rozważymy w sytuacji, gdy opuszczamy dom na kilka godzin (w naszym przypadku będą to 2 godziny). Wyjściowy rozkład temperatury przyjmiemy taki, jaki uzyskano w ostatnim momencie poprzedniej symulacji, gdy ogrzewaliśmy mieszkanie według drugiego, bardziej optymalnego ułożenia grzejników.
+
+Przeanalizujemy sytuację, w której na zewnątrz panują typowe obecnie warunki temperaturowe, czyli jest zimno. To znaczy, że temperatury wahają się w granicach od -3°C do 3°C (takie wartości mamy w naszych danych). W przypadku, gdy nie wyłączymy grzejników, zmniejszymy ich zadaną temperaturę do 19°C. Po upływie 2 godzin grzejniki ponownie rozpoczynają ogrzewanie w typowym trybie, co oznacza, że zadane temperatury wracają do wartości z pierwszego eksperymentu. Po kolejnych 2 godzinach porównamy efekty ogrzewania. Poniżej zaprezentowane zostały wyniki symulacji za pomocą map ciepła, wykresu średniej temperatury i wykresu oddanej energii.
+
+![Mapy ciepła dla obu sytuacji.](ost_obrazek_mc_eksperyment2_bez_tytulu.png){ width=600px }
+Widzimy, że mapy ciepła dla czasu początkowego (co jest normalne, skoro zaczynamy z takim samym rozkładem ciepła) jak i końcowego są takie same. Środkowe zaś się różnią, co pokazuje, że w jednym przypadku faktycznie grzejniki zostały wyłączone i temperatura w mieszkaniu spadła.
+
+![Wykres średnich temperatur dla poszczególnych pokoi dla obu przypadków (GW- grzejniki włączone; GZ-grzejniki zgaszone). ](ost_obrazek_tem_pom_eksperyment2_bez_tytulu.png){ width=500px }
+
+Wyniki symulacji pokazują, że mimo wyłączenia ogrzewania i spadku temperatury powietrza w pomieszczeniach, po ponownym włączeniu grzejników do normalnego trybu pracy temperatura bardzo szybko osiąga oczekiwaną wartość. W przypadku, gdy wyłączyliśmy grzejniki, już po około 0,5 godziny we wszystkich pomieszczeniach osiągnięte zostały wartości graniczne. Jest to krótki okres czasu, co pokazuje skuteczność tej metody. Zauważmy, że w przypadku wyłączenia kaloryferów dla niektórych pomieszczeń temperatura spadła nawet poniżej 5°C, po czym po pierwszych 10 minutach ogrzewania urosła już nawet o ponad 15°C. 
+
+![Wykres całkowitej energii oddanej do układu dla obu wariantów.](ost_obrazek_oddana_energia_eksperyment2_bez_tytulu.png){ width=500px }
+
+
+
+
+
+Również, patrząc na wykres całkowitej oddanej energii do układu, zauważamy, że wynik osiągnięty przy wyłączeniu grzejników jest zdecydowanie lepszy. W porównaniu do sytuacji, w której pozostawiliśmy grzejniki włączone, zużyliśmy aż o 15 000 mniej jednostek energii. Wskazuje to, że faktycznie można zaoszczędzić na energii stosując takie rozwiązanie. Wyniki naszych symulacji pokazują jednoznacznie, że dużo lepszym sposobem na oszczędzenie energii jest wyłączenie grzejników na czas naszej nieobecności niż zmniejszenie ich trybu pracy.
+
+# Końcowa konkluzja
+
+Podsumowując wyniki naszych rozważań na temat optymalnego ogrzewania mieszkania, sugerujemy, aby nie umieszczać kaloryferów pod oknami oraz zawsze wyłączać grzejniki przed wyjściem z domu. Jak wskazują nasze symulacje, takie działania pozwolą na znaczne obniżenie zużycia energii, co przełoży się na mniejsze koszty ogrzewania i większe oszczędności.
